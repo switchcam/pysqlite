@@ -28,6 +28,7 @@ import zipfile
 from distutils.core import setup, Extension, Command
 from distutils.command.build import build
 from distutils.command.build_ext import build_ext
+from distutils.command.config import config
 
 import cross_bdist_wininst
 
@@ -124,6 +125,8 @@ class MyBuildExt(build_ext):
     amalgamation = False
 
     def build_extension(self, ext):
+        ext.include_dirs += include_dirs
+        ext.library_dirs += library_dirs
         if self.amalgamation:
             get_amalgamation()
             ext.define_macros.append(("SQLITE_ENABLE_FTS3", "1"))   # build with fulltext search enabled
@@ -137,6 +140,19 @@ class MyBuildExt(build_ext):
         if self.amalgamation and k == "libraries":
             v = None
         self.__dict__[k] = v
+
+
+class UpdateConfig(config):
+
+    def finalize_options(self):
+        config.finalize_options(self)
+
+        global include_dirs
+        global library_dirs
+
+        include_dirs += self.include_dirs
+        library_dirs += self.library_dirs
+
 
 def get_setup_args():
 
@@ -206,7 +222,13 @@ def get_setup_args():
             cmdclass = {"build_docs": DocBuilder}
             )
 
-    setup_args["cmdclass"].update({"build_docs": DocBuilder, "build_ext": MyBuildExt, "build_static": AmalgamationBuilder, "cross_bdist_wininst": cross_bdist_wininst.bdist_wininst})
+    setup_args["cmdclass"].update({
+        "config": UpdateConfig,
+        "build_docs": DocBuilder,
+        "build_ext": MyBuildExt,
+        "build_static": AmalgamationBuilder,
+        "cross_bdist_wininst": cross_bdist_wininst.bdist_wininst})
+
     return setup_args
 
 def main():
